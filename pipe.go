@@ -107,6 +107,7 @@ type State struct {
 	killed      chan bool
 
 	pendingTasks []*pendingTask
+	Echo bool
 }
 
 // NewState returns a new state for running pipes with.
@@ -511,6 +512,10 @@ func (f *execTask) Run(s *State) error {
 	cmd.Stdin = s.Stdin
 	cmd.Stdout = s.Stdout
 	cmd.Stderr = s.Stderr
+	if s.Echo {
+		echoCmd := strings.Join(append([]string{f.name}, f.args...), " ")
+		os.Stdout.Write([]byte(fmt.Sprintf("Running %s\n", echoCmd)))
+	}
 	err := cmd.Start()
 	f.p = cmd.Process
 	f.m.Unlock()
@@ -653,6 +658,15 @@ func Line(p ...Pipe) Pipe {
 		}
 		return nil
 	}
+}
+
+// TeeLine intersperses a pipeline with a Tee pipe 
+func TeeLine(p ...Pipe) Pipe {
+	pipes := []Pipe{}
+	for _, p := range p {
+		pipes = append(pipes, p, Tee(os.Stdout))
+	}
+	return Line(pipes...)
 }
 
 type refCloser struct {
